@@ -36,3 +36,5 @@ pnpm-debug.log*
 
 # TypeScript
 tsconfig.tsbuildinfo
+
+.vercel
