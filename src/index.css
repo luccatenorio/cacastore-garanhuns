@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Montserrat", "Poppins", "Inter", system-ui, -apple-system, sans-serif;
+  --font-serif: "Montserrat", sans-serif;
+
+  /* Identidade Visual Caca Store */
+  --color-brand-navy: #0A1329;
+  --color-brand-navy-dark: #060B18;
+  --color-brand-navy-light: #16264C;
+  --color-brand-gold: #D4AF37;
+  --color-brand-gold-light: #F6E6B4;
+  --color-brand-gold-dark: #997316;
+}
+
+@layer base {
+  body {
+    background-color: #FFFFFF;
+    color: #111827;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-sans);
+  }
+}
+
+/* Animação Marquee Grande e Fluida */
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 24s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #F3F4F6;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #0A1329;
+}

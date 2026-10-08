@@ -1,0 +1,167 @@
+import { Product } from '../types';
+
+export const INITIAL_PRODUCTS: Product[] = [
+  {
+    id: 'pijama-americano-poa',
+    name: 'Pijama Americano Clássico Poá Navy',
+    category: 'Pijamas Americanos',
+    price: 100,
+    originalPrice: 129.90,
+    costPrice: 70,
+    sizes: ['P', 'M', 'G', 'GG'],
+    stock: 11,
+    image: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1583846783214-7229a91b20ed?auto=format&fit=crop&w=800&q=80'
+    ],
+    description: 'Pijama estilo americano clássico com botões frontais, gola notch com vivo contrastante. Tecido 100% algodão premium ultra respirável, toque sedoso e caimento relaxado.',
+    fabric: '100% Algodão Puro Premium',
+    badge: 'Mais Vendido',
+    isComboEligible: true,
+  },
+  {
+    id: 'pijama-americano-listrado',
+    name: 'Pijama Americano Listrado Riviera',
+    category: 'Pijamas Americanos',
+    price: 100,
+    originalPrice: 129.90,
+    costPrice: 70,
+    sizes: ['P', 'M', 'G', 'GG'],
+    stock: 9,
+    image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=800&q=80'
+    ],
+    description: 'Listras verticais atemporais que alongam a silhueta. Perfeito para quem busca elegância e máximo conforto nas noites de descanso.',
+    fabric: '100% Algodão Puro Antialérgico',
+    badge: 'Destaque',
+    isComboEligible: true,
+  },
+  {
+    id: 'pijama-americano-rose',
+    name: 'Pijama Americano Soft Rose Quartz',
+    category: 'Pijamas Americanos',
+    price: 100,
+    originalPrice: 125.00,
+    costPrice: 70,
+    sizes: ['P', 'M', 'G'],
+    stock: 7,
+    image: 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=800&q=80'
+    ],
+    description: 'Tom rosé delicado com toque aveludado. Modelagem confortável com bolso frontal e detalhes refinados.',
+    fabric: '100% Algodão Penteado',
+    badge: 'Edição Especial',
+    isComboEligible: true,
+  },
+  {
+    id: 'babydoll-alcinha-floral',
+    name: 'Babydoll Alcinha Floral Botanique',
+    category: 'Babydolls',
+    price: 105,
+    originalPrice: 135.00,
+    costPrice: 75,
+    sizes: ['M', 'G', 'GG'],
+    stock: 7,
+    image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80'
+    ],
+    description: 'Conjunto babydoll com alças ajustáveis, shortinho com elástico embutido que não aperta a cintura. Estampa floral suave romântica.',
+    fabric: '100% Algodão Toque Suave',
+    badge: 'Pronta Entrega',
+    isComboEligible: true,
+  },
+  {
+    id: 'babydoll-alcinha-black',
+    name: 'Babydoll Alcinha Satin & Algodão Black',
+    category: 'Babydolls',
+    price: 105,
+    originalPrice: 135.00,
+    costPrice: 75,
+    sizes: ['M', 'G', 'GG'],
+    stock: 6,
+    image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=80'
+    ],
+    description: 'Pretinho básico irresistível. Fresco para os dias mais quentes e com ótimo acabamento reforçado nas costuras.',
+    fabric: '100% Algodão Premium',
+    badge: 'Favorito',
+    isComboEligible: true,
+  },
+  {
+    id: 'fitness-montaria-verde',
+    name: 'Conjunto Fitness Montaria Verde Militar',
+    category: 'Moda Fitness',
+    price: 190,
+    originalPrice: 229.00,
+    costPrice: 140,
+    sizes: ['G'],
+    stock: 8,
+    image: 'https://images.unsplash.com/photo-1518310383802-640c2de311b2?auto=format&fit=crop&w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1518310383802-640c2de311b2?auto=format&fit=crop&w=800&q=80'
+    ],
+    description: 'Legging com cós alto duplo anatômico que comprime sem marcar. Top com bojo removível e alta sustentação. Malha montaria encorpada de alta gramatura.',
+    fabric: 'Malha Montaria Encorpada (380g)',
+    badge: '100% Zero Transparência',
+    isComboEligible: false,
+  },
+  {
+    id: 'fitness-montaria-black',
+    name: 'Conjunto Fitness Montaria Black Power',
+    category: 'Moda Fitness',
+    price: 190,
+    originalPrice: 229.00,
+    costPrice: 140,
+    sizes: ['G'],
+    stock: 7,
+    image: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=800&q=80'
+    ],
+    description: 'O clássico indispensável para qualquer treino ou rotina corrida. Modela o bumbum, cintura fina e conforto absoluto.',
+    fabric: 'Malha Montaria Premium',
+    badge: '100% Zero Transparência',
+    isComboEligible: false,
+  },
+  {
+    id: 'fitness-canelado-bordeaux',
+    name: 'Conjunto Fitness Canelado Bordeaux',
+    category: 'Moda Fitness',
+    price: 185,
+    originalPrice: 219.00,
+    costPrice: 140,
+    sizes: ['M', 'G'],
+    stock: 4,
+    image: 'https://images.unsplash.com/photo-1575052814086-f385e2e2ad1b?auto=format&fit=crop&w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1575052814086-f385e2e2ad1b?auto=format&fit=crop&w=800&q=80'
+    ],
+    description: 'Tecido canelado 3D com elasticidade multidirecional. Toque incrivelmente macio, disfarça celulite e se adapta perfeitamente ao corpo.',
+    fabric: 'Poliamida Canelada 3D com Elastano',
+    badge: 'Cós Alto Anatômico',
+    isComboEligible: false,
+  },
+  {
+    id: 'fitness-canelado-indigo',
+    name: 'Conjunto Fitness Canelado Azul Índigo',
+    category: 'Moda Fitness',
+    price: 185,
+    originalPrice: 219.00,
+    costPrice: 140,
+    sizes: ['M', 'G'],
+    stock: 3,
+    image: 'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&w=800&q=80',
+    images: [
+      'https://images.unsplash.com/photo-1540497077202-7c8a3999166f?auto=format&fit=crop&w=800&q=80'
+    ],
+    description: 'Cor sofisticada em alta nas academias. Top modelo nadador com reforço e legging sem costura frontal.',
+    fabric: 'Poliamida Canelada 3D',
+    badge: 'Pronta Entrega',
+    isComboEligible: false,
+  }
+];

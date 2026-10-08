@@ -1,0 +1,9 @@
+COLOQUE SUAS FOTOS AQUI!
+=========================
+
+Pasta: c:\Users\Christian\Desktop\CACASTORE GUS\fotos_produtos
+
+Instruções:
+1. Copie e cole todas as fotos que você quer usar nos produtos dentro desta pasta.
+2. Formatos aceitos: .jpg, .jpeg, .png, .webp
+3. Me avise no chat que colocou as fotos, e eu faço o upload automático de todas para o Supabase no bucket caca-store e vinculo diretamente aos produtos no catálogo!
