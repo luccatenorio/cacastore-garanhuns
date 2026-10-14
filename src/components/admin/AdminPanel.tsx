@@ -3,7 +3,7 @@ import { Plus, Pencil, Trash2, ArrowLeft, Package, DollarSign, Sparkles, Refresh
 import { Product, Combo, SaleRecord } from '../../types';
 import { getProducts, saveProduct, deleteProduct, resetToDefaultProducts, getCategories, getCategoriesAsync, saveCategory, deleteCategory, uploadProductImage, getCombos, saveCombo, deleteCombo, getSales, recordSale, deleteSale, clearAllSales } from '../../lib/storage';
 import { getAdminSession, loginAdmin, logoutAdmin, AdminUser } from '../../lib/auth';
-import { isSupabaseConfigured } from '../../lib/supabase';
+import { isSupabaseConfigured, supabase } from '../../lib/supabase';
 import { SalesDashboard } from './SalesDashboard';
 import { AgentDashboard } from './AgentDashboard';
 
@@ -39,6 +39,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Status Liga / Desliga do Agente IA (WhatsApp)
+  const [isAgentActive, setIsAgentActive] = useState<boolean>(true);
+  const [togglingAgent, setTogglingAgent] = useState<boolean>(false);
 
   // Preview de foto ampliada no hover
   const [hoveredImage, setHoveredImage] = useState<ImageHoverPreview | null>(null);
@@ -172,6 +176,53 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
       loadData(false);
     }
   }, [currentUser]);
+
+  // Sincronização do status do Agente IA com o Supabase
+  useEffect(() => {
+    const fetchAgentStatus = async () => {
+      if (!isSupabaseConfigured || !supabase) return;
+      try {
+        const { data } = await supabase.from('caca_agent_settings').select('is_active').eq('id', 'default').single();
+        if (data && typeof data.is_active === 'boolean') {
+          setIsAgentActive(data.is_active);
+        }
+      } catch (err) {
+        console.warn('Erro ao sincronizar status do agente IA:', err);
+      }
+    };
+
+    fetchAgentStatus();
+    const interval = setInterval(fetchAgentStatus, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleToggleAgentActive = async () => {
+    if (!isSupabaseConfigured || !supabase) {
+      alert('Banco Supabase não conectado.');
+      return;
+    }
+    const nextVal = !isAgentActive;
+    setIsAgentActive(nextVal);
+    setTogglingAgent(true);
+    try {
+      const { error } = await supabase
+        .from('caca_agent_settings')
+        .update({ is_active: nextVal, updated_at: new Date().toISOString() })
+        .eq('id', 'default');
+      if (error) throw error;
+      showFeedbackMessage(
+        nextVal
+          ? '🤖 Agente IA LIGADO! A Cacá responderá no WhatsApp.'
+          : '⏸️ Agente IA DESLIGADO! Atendimento automático pausado.'
+      );
+    } catch (err) {
+      console.error('Erro ao alternar status do agente:', err);
+      setIsAgentActive(!nextVal); // Reverte caso falhe
+      alert('Não foi possível alterar o status do Agente IA no Supabase.');
+    } finally {
+      setTogglingAgent(false);
+    }
+  };
 
   const showFeedbackMessage = (msg: string) => {
     setFeedback(msg);
@@ -866,6 +917,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
             <span>Restaurar Padrão</span>
           </button>
 
+          {/* Botão Global Liga/Desliga Agente IA (WhatsApp) */}
+          <button
+            onClick={handleToggleAgentActive}
+            disabled={togglingAgent}
+            className={`px-3 sm:px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-xs border ${
+              isAgentActive
+                ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300'
+                : 'bg-rose-50 hover:bg-rose-100 text-rose-800 border-rose-300'
+            }`}
+            title={
+              isAgentActive
+                ? 'Agente IA Cacá está LIGADO no WhatsApp. Clique para DESLIGAR.'
+                : 'Agente IA Cacá está DESLIGADO. Clique para LIGAR.'
+            }
+          >
+            <span className="relative flex h-2.5 w-2.5">
+              {isAgentActive && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              )}
+              <span
+                className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                  isAgentActive ? 'bg-emerald-500' : 'bg-rose-500'
+                }`}
+              ></span>
+            </span>
+            <span className="hidden md:inline">Agente IA:</span>
+            <span>{isAgentActive ? 'LIGADO' : 'DESLIGADO'}</span>
+          </button>
+
           <button
             onClick={handleOpenCreateCombo}
             className="bg-[#D4AF37] hover:bg-[#c49f2e] text-[#0A1329] px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
@@ -964,14 +1044,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
 
           <button
             onClick={() => setActiveTab('agente_ia')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
               activeTab === 'agente_ia'
                 ? 'bg-[#0A1329] text-white shadow-xs border border-[#D4AF37]/60'
                 : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
             }`}
           >
             <span>🤖 Agente IA (WhatsApp)</span>
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
+                isAgentActive
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-rose-100 text-rose-800'
+              }`}
+            >
+              {isAgentActive ? 'LIGADO' : 'DESLIGADO'}
+            </span>
           </button>
         </div>
 
@@ -1716,7 +1804,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
 
         {/* Tab 5: Agente IA (WhatsApp) */}
         {activeTab === 'agente_ia' && (
-          <AgentDashboard />
+          <AgentDashboard 
+            isAgentActive={isAgentActive}
+            onToggleAgentActive={handleToggleAgentActive}
+          />
         )}
 
       </main>

@@ -28,7 +28,13 @@ def read_root():
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok"}
+    settings = inventory.get_settings()
+    return {
+        "status": "ok",
+        "service": "CaçaStore AI Sales Agent",
+        "is_active": settings.get("is_active", True),
+        "test_mode": settings.get("test_mode", True)
+    }
 
 @app.get("/api/settings")
 def get_settings():

@@ -12,4 +12,4 @@ UAZAPI_INSTANCE_TOKEN = os.getenv("UAZAPI_INSTANCE_TOKEN", "6c9e3267-343f-4e4d-9
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://ubnkmtttmvmpminkkasu.supabase.co")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVibmttdHR0bXZtcG1pbmtrYXN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1OTg3MTIsImV4cCI6MjA4NjE3NDcxMn0.kvsps8nQviGOlQSx2eadeHptpUBNcR2nCizIxX0RIWM")
 
-PORT = int(os.getenv("PORT", "8000"))
+PORT = int(os.getenv("PORT", "80"))

@@ -19,21 +19,24 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 
-async def call_openrouter(messages: List[Dict[str, str]]) -> str:
+async def call_openrouter(messages: List[Dict[str, str]], api_key: str = "", model: str = "") -> str:
     """Chama a OpenRouter API para obter a resposta da IA."""
-    if not OPENROUTER_API_KEY:
-        logger.error("[OPENROUTER] API Key não configurada!")
-        return "Olá! Sou a Cacá da CaçaStore. Um minutinho que já vou te atender!"
+    chosen_key = api_key or OPENROUTER_API_KEY
+    chosen_model = model or OPENROUTER_MODEL or "openai/gpt-4o-mini"
+
+    if not chosen_key:
+        logger.info("[OPENROUTER] API Key não configurada. Usando motor nativo de script da Cacá.")
+        return ""
 
     headers = {
-        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Authorization": f"Bearer {chosen_key}",
         "HTTP-Referer": "https://cacastore-garanhuns.vercel.app",
         "X-Title": "CacaStore AI Sales Agent",
         "Content-Type": "application/json"
     }
 
     payload = {
-        "model": OPENROUTER_MODEL,
+        "model": chosen_model,
         "messages": messages,
         "temperature": 0.7,
         "max_tokens": 500
@@ -47,10 +50,39 @@ async def call_openrouter(messages: List[Dict[str, str]]) -> str:
                 return data["choices"][0]["message"]["content"]
             else:
                 logger.error(f"[OPENROUTER] Erro ({res.status_code}): {res.text}")
-                return "Oie! Aqui é a Cacá da CaçaStore 💕 Já estou te atendendo!"
+                return ""
     except Exception as e:
         logger.error(f"[OPENROUTER] Exceção na requisição: {e}")
-        return "Oie! Aqui é a Cacá 💕 Já te respondo em um instante!"
+        return ""
+
+def generate_fallback_response(history: List[Dict[str, str]], text: str, detected_size: str, settings: Dict[str, Any]) -> str:
+    """Motor de resposta nativo calibrado no estilo real da Cacá quando não houver LLM configurada."""
+    t = text.lower()
+    pix_key = settings.get("pix_key") or "12.345.678/0001-90"
+    combo_price = settings.get("combo_price", 200.0)
+
+    # 1. Transbordo Humano para Cartão de Crédito ou Parcelamento
+    if any(k in t for k in ["cartao", "cartão", "credito", "crédito", "link", "parcelar", "vezes", "parcela", "maquininha"]):
+        return "Perfeito! Já chamei a equipe aqui pra te mandar o link de pagamento no cartão com toda segurança. Só um momentinho que já te mandam por aqui! 💕 [TRANSBORDO_HUMANO]"
+
+    # 2. Pagamento / Pix
+    if any(k in t for k in ["pix", "chave", "pagamento", "pagar", "como pago", "qual a chave"]):
+        return f"Maravilha! O valor do combo com 2 pijamas curtos é R$ {combo_price:.2f}. A nossa chave Pix é:\n\n{pix_key}\n\nAssim que você fizer, só me mandar o comprovante por aqui pra gente já agendar sua entrega! 🥰 [AGUARDANDO_PAGAMENTO]"
+
+    # 3. Endereço informado
+    if any(k in t for k in ["rua", "bairro", "numero", "número", "av", "avenida", "apto", "apartamento", "garanhuns", "bloco", "casa"]):
+        return "Endereço anotadinho com sucesso! 🛵✨ Assim que confirmarmos o pagamento já agendamos sua entrega!"
+
+    # 4. Tamanho informado agora
+    if detected_size:
+        return f"Separamos aqui os modelinhos mais lindos no tamanho {detected_size} que estão disponíveis agora pra você escolher no seu combo! Dá uma olhadinha nessas fotos 👇✨"
+
+    # 5. Já teve conversa anterior
+    if len(history) > 1:
+        return "Qualquer dúvida estou por aqui! Me conta qual tamanho você costuma vestir (P, M, G ou GG) pra eu te mandar as fotinhas disponíveis agora 💕"
+
+    # 6. Primeiro contato / Saudação
+    return "Oie, tudo bem? Aqui é a Cacá da Caça Store 💕 Seja muito bem-vinda!\n\nNossa promoção especial é de 2 pijamas curtos (como o americano ou alcinha) por apenas R$ 200,00! E aqui em Garanhuns a entrega é grátis e super rápida 🛵✨\n\nQual tamanho você veste (P, M, G ou GG) pra eu te mandar agora mesmo as fotos dos modelos disponíveis no seu tamanho? 🥰"
 
 def extract_size_from_text(text: str) -> str:
     """Detecta tamanho mencionado no texto (P, M, G, GG)."""
@@ -73,13 +105,13 @@ async def process_incoming_message(phone: str, text: str, sender_name: str = "")
     # 1. Carrega configurações do agente
     settings = inventory.get_settings()
     if not settings.get("is_active", True):
-        logger.info("[AGENT] Agente desativado globalmente nas configurações.")
+        logger.info("[AGENT] Agente desativado globalmente nas configurações (is_active=False).")
         return
 
     # 2. Modo de Teste / Whitelist
     test_mode = settings.get("test_mode", True)
-    whitelist = [uazapi.clean_phone(p) for p in (settings.get("whitelist_phones") or [])]
-    if test_mode and clean_phone not in whitelist:
+    whitelist = settings.get("whitelist_phones") or []
+    if test_mode and not uazapi.is_phone_in_whitelist(clean_phone, whitelist):
         logger.info(f"[AGENT] Modo de Teste ativo: {clean_phone} não está na whitelist ({whitelist}). Mensagem ignorada pela IA.")
         return
 
@@ -138,8 +170,13 @@ async def process_incoming_message(phone: str, text: str, sender_name: str = "")
         role = "assistant" if m.get("sender") == "agente_ia" else "user"
         llm_messages.append({"role": role, "content": m.get("content", "")})
 
-    # 9. Chama a inteligência artificial
-    ai_response = await call_openrouter(llm_messages)
+    # 9. Chama a inteligência artificial (ou fallback se chave não estiver configurada)
+    api_key = settings.get("openrouter_api_key") or OPENROUTER_API_KEY
+    model = settings.get("openrouter_model") or OPENROUTER_MODEL
+    ai_response = await call_openrouter(llm_messages, api_key=api_key, model=model)
+
+    if not ai_response:
+        ai_response = generate_fallback_response(history, text, detected_size, settings)
 
     # 10. Processa tags de controle da resposta da IA
     new_status = lead.get("status", "em_atendimento")
@@ -161,13 +198,21 @@ async def process_incoming_message(phone: str, text: str, sender_name: str = "")
                                .replace("[PAGAMENTO_CONFIRMADO]", "")\
                                .replace("[AGUARDANDO_PAGAMENTO]", "").strip()
 
-    # 11. Se um tamanho foi informado agora, dispara as fotos dos modelos em estoque!
+    # 11. Envio de texto (divide em mensagens curtas com espaçamento natural de digitação se tiver quebras de linha duplas)
+    text_blocks = [b.strip() for b in cleaned_reply.split("\n\n") if b.strip()]
+    if not text_blocks:
+        text_blocks = [cleaned_reply]
+
+    for idx, block in enumerate(text_blocks):
+        if idx > 0:
+            await uazapi.send_presence(clean_phone, "composing", 1500)
+            await asyncio.sleep(1.2)
+        await uazapi.send_text(clean_phone, block)
+
+    # 12. Se um tamanho foi informado agora, dispara as fotos dos modelos em estoque!
     if detected_size:
         combo_models = inventory.get_combo_models(detected_size)
         logger.info(f"[AGENT] Enviando {len(combo_models)} fotos do tamanho {detected_size} para {clean_phone}")
-        
-        # Envia primeiro o texto da IA
-        await uazapi.send_text(clean_phone, cleaned_reply)
         await asyncio.sleep(1.0)
 
         # Envia até 6 fotos com as legendas dos modelos
@@ -175,9 +220,6 @@ async def process_incoming_message(phone: str, text: str, sender_name: str = "")
             cap = f"✨ {item['name']} (Tam: {detected_size}) - Participa do Combo 2 por R$ 200"
             await uazapi.send_media(clean_phone, item["image"], cap)
             await asyncio.sleep(1.2)
-    else:
-        # Envia apenas a mensagem de texto normal
-        await uazapi.send_text(clean_phone, cleaned_reply)
 
     # 12. Salva a resposta da IA e atualiza o status do lead no Supabase
     supabase.from_("caca_agent_messages").insert({

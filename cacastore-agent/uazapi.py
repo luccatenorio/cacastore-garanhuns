@@ -17,6 +17,27 @@ def clean_phone(phone: str) -> str:
         clean = "55" + clean
     return clean
 
+def get_phone_variants(phone: str) -> set:
+    """Gera variantes com e sem o 9º dígito para telefones celulares do Brasil."""
+    clean = clean_phone(phone)
+    variants = {clean}
+    # Se com 55 e 13 dígitos (55 + 2 ddd + 9 + 8 dígitos)
+    if clean.startswith("55") and len(clean) == 13 and clean[4] == "9":
+        variants.add(clean[:4] + clean[5:])
+    # Se com 55 e 12 dígitos (55 + 2 ddd + 8 dígitos)
+    elif clean.startswith("55") and len(clean) == 12:
+        variants.add(clean[:4] + "9" + clean[4:])
+    return variants
+
+def is_phone_in_whitelist(phone: str, whitelist: list) -> bool:
+    """Verifica se o telefone está na whitelist considerando variações com/sem 9."""
+    phone_variants = get_phone_variants(phone)
+    for w in whitelist:
+        w_variants = get_phone_variants(w)
+        if phone_variants & w_variants:
+            return True
+    return False
+
 async def send_presence(phone: str, presence: str = "composing", delay_ms: int = 1500):
     """Simula digitando no WhatsApp para parecer 100% humano."""
     clean = clean_phone(phone)

@@ -80,5 +80,7 @@ def get_settings() -> Dict[str, Any]:
         "test_mode": True,
         "whitelist_phones": ["553197584189", "558781563664"],
         "pix_key": "",
-        "combo_price": 200.00
+        "combo_price": 200.00,
+        "openrouter_api_key": "",
+        "openrouter_model": "openai/gpt-4o-mini"
     }
