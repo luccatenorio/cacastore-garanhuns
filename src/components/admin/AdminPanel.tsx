@@ -5,6 +5,7 @@ import { getProducts, saveProduct, deleteProduct, resetToDefaultProducts, getCat
 import { getAdminSession, loginAdmin, logoutAdmin, AdminUser } from '../../lib/auth';
 import { isSupabaseConfigured } from '../../lib/supabase';
 import { SalesDashboard } from './SalesDashboard';
+import { AgentDashboard } from './AgentDashboard';
 
 interface ImageHoverPreview {
   url: string;
@@ -28,7 +29,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
   const [loginLoading, setLoginLoading] = useState(false);
 
   // Panel State
-  const [activeTab, setActiveTab] = useState<'estoque' | 'vendas' | 'combos' | 'vendidos' | 'colecoes'>('estoque');
+  const [activeTab, setActiveTab] = useState<'estoque' | 'vendas' | 'combos' | 'vendidos' | 'colecoes' | 'agente_ia'>('estoque');
   const [products, setProducts] = useState<Product[]>([]);
   const [combos, setCombos] = useState<Combo[]>([]);
   const [sales, setSales] = useState<SaleRecord[]>([]);
@@ -960,6 +961,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
               {categories.length}
             </span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('agente_ia')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'agente_ia'
+                ? 'bg-[#0A1329] text-white shadow-xs border border-[#D4AF37]/60'
+                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+            }`}
+          >
+            <span>🤖 Agente IA (WhatsApp)</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          </button>
         </div>
 
         {/* Financial Dashboard Cards - GMV, Lucro Feito & Estoque */}
@@ -1699,6 +1712,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit }) => {
               </div>
             )}
           </div>
+        )}
+
+        {/* Tab 5: Agente IA (WhatsApp) */}
+        {activeTab === 'agente_ia' && (
+          <AgentDashboard />
         )}
 
       </main>
