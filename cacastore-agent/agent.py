@@ -135,38 +135,38 @@ def generate_fallback_response(
 
     # 1. Objeção: De onde é a loja / Ponto físico / Prefixo 31
     if any(k in t for k in ["onde fica", "de onde", "ponto fisico", "ponto físico", "ponto fixo", "tempo fixo", "loja fisica", "loja física", "prefixo", "ddd"]):
-        return "Me chamo Carmen! Nossa loja é virtual e atuamos aqui em Garanhuns e em Arapiraca (o prefixo 31 é apenas de um número antigo meu). ❤️\n\nAqui em Garanhuns nosso estoque fica no centro, na Dantas Barreto (no prédio da Autoescola Driver)! A gente leva até sua casa com **Entrega Grátis** hoje mesmo, ou atendemos com **horário marcado** se preferir ver pessoalmente.\n\nQual fica mais prático para você: a gente te entregar em casa sem custo ou dar um pulinho aqui? 🥰"
+        return "Sou a Cacá da CacaStore! Nossa loja é virtual aqui em Garanhuns-PE (fazemos entregas *somente em Garanhuns*, e o prefixo 31 é apenas de um número antigo meu). ❤️\n\nNosso estoque fica no centro de Garanhuns, na Dantas Barreto (no prédio da Autoescola Driver)! A gente leva até sua casa com *Entrega Grátis* hoje mesmo, ou atendemos com *horário marcado* se preferir ver pessoalmente.\n\nQual fica mais prático para você: a gente te entregar em casa sem custo ou dar um pulinho aqui? 🥰"
 
     # 2. Pergunta sobre Camisola / "vestidinho"
     if any(k in t for k in ["vestidinho", "vestido", "camisola", "camisolas"]):
         if detected_size == "P":
-            return "Essa que parece um vestidinho é a nossa **Camisola Americana**, toda aberta com botões na frente! 😍\n\nNo momento nossas camisolas esgotaram no tamanho P (temos ela no M e no G por R$ 99 com Entrega Grátis!). Mas no **tamanho P** tenho modelos lindos de Pijama Americano e Babydoll! Vou te mandar as fotos aqui embaixo 👇❤️"
+            return "Essa que parece um vestidinho é a nossa *Camisola Americana*, toda aberta com botões na frente! 😍\n\nNo momento nossas camisolas esgotaram no tamanho P (temos ela no M e no G por R$ 99 com Entrega Grátis em Garanhuns!). Mas no *tamanho P* tenho modelos lindos de Pijama Curto e Pijama Comprido! Vou te mandar as fotos aqui embaixo 👇❤️"
         if detected_size:
-            return f"A nossa **Camisola Americana** é super fresquinha e toda com abertura de botões na frente, saindo por **R$ 99 com Entrega Grátis** aqui em Garanhuns! 😍\n\nVou te mandar aqui embaixo a opção que tenho disponível no tamanho **{detected_size}** e também nossos pijamas da promoção! 👇❤️"
-        return "Boa tarde, lindeza! Essa que parece um vestidinho é a nossa **Camisola Americana**, super fresquinha e toda com abertura de botões na frente! 😍\n\nEla está saindo por **R$ 99** com **Entrega Grátis** aqui em Garanhuns! 🛵✨\n\nQual tamanho você veste (**P, M, G ou GG**)? Me fala aqui que já te envio as opções lindas disponíveis no seu tamanho! 🥰👇"
+            return f"A nossa *Camisola Americana* é super fresquinha e toda com abertura de botões na frente, saindo por *R$ 99 com Entrega Grátis* aqui em Garanhuns! 😍\n\nVou te mandar aqui embaixo a opção que tenho disponível no tamanho *{detected_size}* e também nossos pijamas da promoção! 👇❤️"
+        return "Boa tarde, lindeza! Essa que parece um vestidinho é a nossa *Camisola Americana*, super fresquinha e toda com abertura de botões na frente! 😍\n\nEla está saindo por *R$ 99* com *Entrega Grátis* aqui em Garanhuns! 🛵✨\n\nQual tamanho você veste (*P, M, G ou GG*)? Me fala aqui que já te envio as opções lindas disponíveis no seu tamanho! 🥰👇"
 
     # 3. Cliente respondeu/marcou uma foto específica
     if quoted_caption:
         clean_name = quoted_caption.replace("✨", "").split("(")[0].strip()
-        return f"Amei sua escolha! O modelo **{clean_name}** veste super bem e o tecido é delicioso! 😍\n\nVocê quer levar ele junto com mais 1 modelo para fechar o **Combo de 2 peças por R$ {combo_price}** com **Entrega Grátis** aqui em Garanhuns, ou prefere só ele mesmo? 🛵💕"
+        return f"Amei sua escolha! O modelo *{clean_name}* veste super bem e o tecido é delicioso! 😍\n\nVocê quer levar ele junto com mais 1 modelo para fechar o *Combo de 2 peças por R$ {combo_price}* com *Entrega Grátis* aqui em Garanhuns, ou prefere só ele mesmo? 🛵💕"
 
     # 4. Cliente enviou uma imagem
     if has_image and not detected_size:
         if any(k in t for k in ["comprovante", "pago", "paguei", "pix feito", "transferi"]):
-            return "Comprovante recebido com sucesso, lindeza! Muito obrigada pela confiança! 🥰✨\n\nMe confirma seu endereço certinho com ponto de referência aqui em Garanhuns para a gente já separar e mandar entregar! 🛵💖 [PAGAMENTO_CONFIRMADO]"
-        return "Recebi a fotinha que você mandou! 😍 Esse modelo é maravilhoso e super confortável!\n\nMe conta: qual tamanho você veste (**P, M, G ou GG**)? Assim já confiro aqui no estoque e te mando todas as opções disponíveis no seu tamanho com **Entrega Grátis** em Garanhuns! 🥰👇"
+            return "Comprovante recebido com sucesso, lindeza! Muito obrigada pela confiança! 🥰✨\n\nMe confirma seu endereço certinho com ponto de referência aqui em Garanhuns para a gente já separar e te avisar assim que sair para entrega! 🛵💖 [VENDA_FECHADA]"
+        return "Recebi a fotinha que você mandou! 😍 Esse modelo é maravilhoso e super confortável!\n\nMe conta: qual tamanho você veste (*P, M, G ou GG*)? Assim já confiro aqui no estoque e te mando todas as opções disponíveis no seu tamanho com *Entrega Grátis* em Garanhuns! 🥰👇"
 
     # 5. Cartão de Crédito
     if any(k in t for k in ["cartao", "cartão", "credito", "crédito", "link", "parcelar", "vezes", "parcela", "maquininha"]):
-        return "Perfeito, flor! Aceitamos cartão sim! 💳✨\n\nJá acionei nossa equipe aqui para finalizar no cartão ou mandar a maquininha na entrega pra você. Só um instante que já falamos com você! 💕 [TRANSBORDO_HUMANO]"
+        return "Perfeito, flor! Aceitamos cartão sim! 💳✨\n\nJá acionei nossa equipe aqui para finalizar no cartão ou mandar a maquininha na entrega pra você aqui em Garanhuns. Só um instante que já falamos com você! 💕 [TRANSBORDO_HUMANO]"
 
     # 6. Pix
     if any(k in t for k in ["pix", "chave", "pagamento", "pagar", "como pago", "qual a chave"]):
-        return f"Maravilha, lindeza! Já deixei separado para você! 🥰✨\n\nNossa chave Pix é:\n*{pix_key}*\n\nAssim que fizer, me manda o comprovante e o seu endereço com ponto de referência aqui em Garanhuns que nosso entregador leva hoje mesmo com **Entrega Grátis**! 🛵💕 [AGUARDANDO_PAGAMENTO]"
+        return f"Maravilha, lindeza! Já deixei separado para você! 🥰✨\n\nNossa chave Pix é:\n*{pix_key}*\n\nAssim que fizer, me manda o comprovante e o seu endereço com ponto de referência aqui em Garanhuns que nosso entregador leva hoje mesmo com *Entrega Grátis*! 🛵💕 [AGUARDANDO_PAGAMENTO]"
 
     # 7. Tamanho informado
     if detected_size:
-        return f"Perfeito! Separei aqui as opções mais lindas disponíveis no tamanho **{detected_size}**! 😍\n\nLembrando que no nosso combo especial você leva **2 pijamas por R$ {combo_price}** com **Entrega Grátis** aqui em Garanhuns! 🛵✨\n\nVou te mandar as fotos aqui embaixo, me diz quais você mais gostou! 👇❤️"
+        return f"Perfeito! Separei aqui as opções mais lindas disponíveis no tamanho *{detected_size}*! 😍\n\nLembrando que *somente hoje* no nosso combo especial você leva *2 pijamas por R$ {combo_price}* (1 sai por *R$ 109*) com *Entrega Grátis* aqui em Garanhuns! Vou te mandar as fotos aqui embaixo 👇\n\nAlém desses modelos do combo, temos também *pijamas compridos (longos)* e *camisolas* lindas! Me diz quais você mais gostou ou se quer ver os compridos e camisolas também! ❤️"
 
     # 8. Saudação inicial
     if len(history) <= 1:
