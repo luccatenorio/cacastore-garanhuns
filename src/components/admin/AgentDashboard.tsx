@@ -62,25 +62,80 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [newWhitelistPhone, setNewWhitelistPhone] = useState('');
 
-  // Status de conectividade com o backend do EasyPanel
+  // Status de conectividade com o backend Cloud (Supabase Edge Function + Vision)
+  const AGENT_CLOUD_URL = 'https://ubnkmtttmvmpminkkasu.supabase.co/functions/v1/caca-agent-webhook';
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [serverDetails, setServerDetails] = useState<string>('Testando conexão...');
+
+  // Estados do Simulador de Testes (Texto + Visão de Imagem)
+  const [simText, setSimText] = useState('');
+  const [simImageBase64, setSimImageBase64] = useState<string>('');
+  const [simImagePreview, setSimImagePreview] = useState<string>('');
+  const [simLoading, setSimLoading] = useState(false);
+  const [simResult, setSimResult] = useState<{
+    blocks: string[];
+    photos_to_send: Array<{ name: string; price: number; image: string; is_combo: boolean }>;
+    used_vision_ai: boolean;
+  } | null>(null);
 
   const checkServerHealth = async () => {
     setServerStatus('checking');
     try {
-      const res = await fetch('https://cacastore-ia-agente-caca.ixzefo.easypanel.host/health');
+      const res = await fetch(AGENT_CLOUD_URL);
       if (res.ok) {
         const data = await res.json();
         setServerStatus('online');
-        setServerDetails(`Servidor Ativo (${data.service || 'OK'})`);
+        setServerDetails(`Servidor Cloud Ativo (${data.service || 'OK'})`);
       } else {
         setServerStatus('offline');
         setServerDetails(`Servidor retornou erro HTTP ${res.status}`);
       }
     } catch {
       setServerStatus('offline');
-      setServerDetails('Servidor indisponível no EasyPanel (502 / Offline)');
+      setServerDetails('Servidor Cloud indisponível');
+    }
+  };
+
+  const handleSimImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = String(reader.result || '');
+      setSimImagePreview(dataUrl);
+      const b64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+      setSimImageBase64(b64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRunSimulation = async (overrideText?: string) => {
+    const textToTest = typeof overrideText === 'string' ? overrideText : simText;
+    if (!textToTest.trim() && !simImageBase64) return;
+    if (typeof overrideText === 'string') setSimText(overrideText);
+    setSimLoading(true);
+    try {
+      const res = await fetch(AGENT_CLOUD_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'simulate',
+          text: textToTest,
+          imageBase64: simImageBase64,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSimResult({
+          blocks: data.blocks || [data.reply],
+          photos_to_send: data.photos_to_send || [],
+          used_vision_ai: Boolean(data.used_vision_ai),
+        });
+      }
+    } catch (e) {
+      console.error('Erro na simulação:', e);
+    } finally {
+      setSimLoading(false);
     }
   };
 
@@ -355,7 +410,7 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
 
           <div className="hidden sm:block w-px h-8 bg-gray-200"></div>
 
-          {/* Servidor EasyPanel Status */}
+          {/* Servidor Cloud Status */}
           <div className="flex items-center gap-2.5">
             <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
               serverStatus === 'online' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
@@ -364,7 +419,7 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-gray-800">Servidor EasyPanel</span>
+                <span className="text-xs font-bold text-gray-800">Servidor Cloud + Visão</span>
                 <span className={`w-2 h-2 rounded-full ${
                   serverStatus === 'online' ? 'bg-emerald-500' : serverStatus === 'checking' ? 'bg-amber-400 animate-spin' : 'bg-rose-500'
                 }`}></span>
@@ -406,21 +461,6 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
           </button>
         </div>
       </div>
-
-      {/* Se o servidor não estiver online, exibe alerta explicativo */}
-      {serverStatus === 'offline' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <span className="font-extrabold text-amber-900">Servidor do Agente ainda não está ativo no EasyPanel</span>
-            <p className="text-amber-800 text-[11px] leading-relaxed">
-              O EasyPanel precisa compilar a nova versão do container com a porta correta. Para ativar agora:
-              acesse o EasyPanel no navegador (<a href="http://187.77.251.116:3000/projects/cacastore-ia/app/agente_caca" target="_blank" rel="noreferrer" className="underline font-bold text-blue-700">http://187.77.251.116:3000</a>),
-              abra o app <strong>agente_caca</strong> e clique no botão verde <strong>"Implantar" (Deploy)</strong>.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* Cards de Métricas em Tempo Real */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -468,6 +508,114 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
           <div className="text-2xl font-black text-purple-600">{emAtendimento}</div>
           <span className="text-[10px] text-gray-400">escolhendo peças</span>
         </div>
+      </div>
+
+      {/* 🧪 SIMULADOR INTERATIVO DO AGENTE (TEXTO + VISÃO DE IMAGEM) */}
+      <div className="bg-gradient-to-br from-[#0A1329] to-[#132347] rounded-2xl p-5 text-white border border-[#D4AF37]/30 shadow-md space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="text-sm sm:text-base font-black flex items-center gap-2 text-[#D4AF37]">
+              <Sparkles className="w-4 h-4" />
+              🧪 Simulador de Testes da Cacá (Texto + Leitura de Imagens)
+            </h3>
+            <p className="text-xs text-gray-300">
+              Teste agora como o Agente responde a textos, fotos de pijamas, anúncios de camisolas ("vestidinho"), dúvidas de ponto físico e tamanhos!
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {[
+              { label: '👗 "Preço do vestidinho"', text: 'Boa tarde, gostaria de saber o preço dessa que parece um vestidinho' },
+              { label: '🏠 "Tem ponto físico?"', text: 'Vi que seu prefixo é 31, vocês não têm ponto fixo em Garanhuns?' },
+              { label: '📏 "Quero ver tamanho M"', text: 'Boa tarde! Visto tamanho M, me manda as opções' },
+              { label: '📏 "Camisola tamanho P"', text: 'Tem camisola no tamanho P?' },
+            ].map((btn, i) => (
+              <button
+                key={i}
+                onClick={() => handleRunSimulation(btn.text)}
+                className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] font-bold text-white transition-colors cursor-pointer border border-white/10"
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+          <input
+            type="text"
+            placeholder="Digite uma mensagem de cliente ou anexe uma foto/print ao lado..."
+            value={simText}
+            onChange={e => setSimText(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleRunSimulation()}
+            className="flex-1 px-4 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-gray-400 text-xs focus:outline-none focus:border-[#D4AF37]"
+          />
+
+          <label className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-bold cursor-pointer flex items-center justify-center gap-1.5 shrink-0">
+            <span>📷 {simImagePreview ? 'Foto Anexada ✓' : 'Anexar Foto / Print'}</span>
+            <input type="file" accept="image/*" onChange={handleSimImageUpload} className="hidden" />
+          </label>
+
+          {simImagePreview && (
+            <button
+              onClick={() => { setSimImagePreview(''); setSimImageBase64(''); }}
+              className="px-2.5 py-2 rounded-xl bg-rose-500/20 text-rose-300 text-xs font-bold cursor-pointer"
+            >
+              Remover Foto
+            </button>
+          )}
+
+          <button
+            onClick={() => handleRunSimulation()}
+            disabled={simLoading}
+            className="px-5 py-2.5 rounded-xl bg-[#D4AF37] hover:bg-[#e3be42] text-[#0A1329] font-black text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shrink-0"
+          >
+            <Send className="w-3.5 h-3.5" />
+            <span>{simLoading ? 'Analisando...' : 'Testar Resposta'}</span>
+          </button>
+        </div>
+
+        {simImagePreview && (
+          <div className="flex items-center gap-3 bg-white/5 p-2.5 rounded-xl border border-white/10">
+            <img src={simImagePreview} alt="Preview" className="w-12 h-12 object-cover rounded-lg border border-white/20" />
+            <span className="text-xs text-emerald-300 font-semibold">
+              Imagem pronta para análise da IA! Clique em "Testar Resposta".
+            </span>
+          </div>
+        )}
+
+        {simResult && (
+          <div className="bg-black/30 rounded-xl p-4 border border-white/10 space-y-3">
+            <div className="flex items-center justify-between text-[11px] text-gray-400">
+              <span>💬 Resposta da Carmen / Cacá (dividida em {simResult.blocks.length} mensagens no WhatsApp):</span>
+              <span className="text-emerald-400 font-bold">
+                {simResult.used_vision_ai ? '🧠 IA Multimodal Vision Ativa' : '⚡ Motor Inteligente Nativo Ativo'}
+              </span>
+            </div>
+            <div className="space-y-2">
+              {simResult.blocks.map((b, idx) => (
+                <div key={idx} className="bg-emerald-900/60 border border-emerald-500/30 text-white px-3.5 py-2.5 rounded-2xl rounded-tl-xs text-xs whitespace-pre-wrap max-w-2xl">
+                  {b}
+                </div>
+              ))}
+            </div>
+            {simResult.photos_to_send.length > 0 && (
+              <div className="pt-2 border-t border-white/10">
+                <p className="text-[11px] text-[#D4AF37] font-bold mb-2">
+                  📸 Fotos reais do estoque enviadas automaticamente ({simResult.photos_to_send.length} peças):
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                  {simResult.photos_to_send.map((p, idx) => (
+                    <div key={idx} className="bg-white/10 rounded-lg p-1.5 text-[10px] flex flex-col items-center text-center">
+                      <img src={p.image} alt={p.name} className="w-full h-20 object-cover rounded mb-1" />
+                      <span className="font-bold line-clamp-1">{p.name}</span>
+                      <span className="text-emerald-300">{p.is_combo ? 'Combo 2 por 200' : `R$ ${p.price}`}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Configurações Rápidas: Chave Pix, Preço do Combo, Whitelist e Inteligência Artificial */}
@@ -540,33 +688,35 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
           </div>
         </div>
 
-        {/* Coluna 3: Inteligência Artificial (OpenRouter & Fallback) */}
+        {/* Coluna 3: Inteligência Artificial (Visão + Texto) */}
         <div>
           <h3 className="text-sm font-bold text-[#0A1329] mb-3 flex items-center gap-2">
             <Cpu className="w-4 h-4 text-purple-600" />
-            Motor de Inteligência Artificial
+            Motor de IA + Visão de Imagens
           </h3>
           <div className="space-y-3 mb-4">
             <div>
-              <label className="block text-[11px] font-semibold text-gray-500 mb-1">Chave OpenRouter (Opcional)</label>
+              <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                Chave Gemini (AIza...) ou OpenRouter (sk-or-...)
+              </label>
               <input
                 type="password"
-                placeholder="sk-or-v1-..."
+                placeholder="AIzaSy... (Grátis) ou sk-or-v1-..."
                 value={settings.openrouter_api_key || ''}
                 onChange={e => setSettings(s => ({ ...s, openrouter_api_key: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-[#0A1329] focus:outline-none focus:border-[#D4AF37]"
               />
             </div>
             <div>
-              <label className="block text-[11px] font-semibold text-gray-500 mb-1">Modelo de IA</label>
+              <label className="block text-[11px] font-semibold text-gray-500 mb-1">Modelo de Visão & Texto</label>
               <select
                 value={settings.openrouter_model || 'openai/gpt-4o-mini'}
                 onChange={e => setSettings(s => ({ ...s, openrouter_model: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-[#0A1329] focus:outline-none focus:border-[#D4AF37] bg-white"
               >
-                <option value="openai/gpt-4o-mini">OpenAI GPT-4o Mini (Recomendado)</option>
+                <option value="openai/gpt-4o-mini">OpenAI GPT-4o Mini Vision (Recomendado)</option>
+                <option value="google/gemini-2.0-flash-001">Google Gemini 2.0 Flash Vision</option>
                 <option value="anthropic/claude-3.5-haiku">Claude 3.5 Haiku</option>
-                <option value="meta-llama/llama-3.1-8b-instruct">Llama 3.1 8B</option>
               </select>
             </div>
           </div>
@@ -578,7 +728,7 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
             {savingSettings ? 'Salvando...' : 'Salvar Configurações de IA'}
           </button>
           <p className="text-[10px] text-gray-400 mt-2 leading-relaxed">
-            ✨ Mesmo sem chave OpenRouter, a Cacá usa seu motor nativo pré-configurado para saudar, enviar fotos do estoque pelo tamanho e passar o Pix!
+            ✨ Aceita chave gratuita do Google AI Studio (<strong>AIza...</strong>) ou OpenRouter para enxergar qualquer foto enviada pelas clientes!
           </p>
         </div>
       </div>
