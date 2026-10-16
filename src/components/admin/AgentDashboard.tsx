@@ -6,12 +6,16 @@ interface AgentLead {
   id: string;
   phone: string;
   name: string;
-  size?: string;
+  size?: string | null;
   status: 'novo' | 'em_atendimento' | 'aguardando_pagamento' | 'pago' | 'aguardando_humano' | 'pausado';
-  address?: string;
+  address?: string | null;
   total_amount?: number;
   is_ai_paused: boolean;
-  notes?: string;
+  paused_until?: string | null;
+  followup_sent?: boolean;
+  followup_sent_at?: string | null;
+  last_client_msg_at?: string | null;
+  notes?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -30,6 +34,8 @@ interface AgentSettings {
   whitelist_phones: string[];
   pix_key: string;
   combo_price: number;
+  notification_phone: string;
+  buffer_seconds: number;
   openrouter_api_key?: string;
   openrouter_model?: string;
 }
@@ -46,10 +52,12 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
   const [leads, setLeads] = useState<AgentLead[]>([]);
   const [settings, setSettings] = useState<AgentSettings>({
     is_active: typeof isAgentActive === 'boolean' ? isAgentActive : true,
-    test_mode: true,
+    test_mode: false,
     whitelist_phones: ['553197584189', '558781563664'],
-    pix_key: '',
+    pix_key: '87999114816 (Carmen Lucia Tenorio Torres)',
     combo_price: 200.00,
+    notification_phone: '5587981563664',
+    buffer_seconds: 15,
     openrouter_api_key: '',
     openrouter_model: 'openai/gpt-4o-mini'
   });
@@ -151,10 +159,12 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
       if (setts) {
         setSettings({
           is_active: typeof isAgentActive === 'boolean' ? isAgentActive : (setts.is_active ?? true),
-          test_mode: setts.test_mode ?? true,
+          test_mode: setts.test_mode ?? false,
           whitelist_phones: setts.whitelist_phones || [],
-          pix_key: setts.pix_key || '',
+          pix_key: setts.pix_key || '87999114816 (Carmen Lucia Tenorio Torres)',
           combo_price: Number(setts.combo_price || 200.00),
+          notification_phone: setts.notification_phone || '5587981563664',
+          buffer_seconds: Number(setts.buffer_seconds ?? 15),
           openrouter_api_key: setts.openrouter_api_key || '',
           openrouter_model: setts.openrouter_model || 'openai/gpt-4o-mini'
         });
@@ -241,10 +251,12 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
     await supabase.from('caca_agent_settings').update({
       pix_key: settings.pix_key,
       combo_price: settings.combo_price,
+      notification_phone: settings.notification_phone,
+      buffer_seconds: settings.buffer_seconds,
       updated_at: new Date().toISOString()
     }).eq('id', 'default');
     setSavingSettings(false);
-    showToast('Configurações de Pix e Preço salvas com sucesso!');
+    showToast('Configurações de Pix, Notificação e Buffer salvas com sucesso!');
   };
 
   const handleSaveAISettings = async () => {
@@ -265,29 +277,71 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
     const newStatus = newVal ? 'pausado' : 'em_atendimento';
     await supabase.from('caca_agent_leads').update({
       is_ai_paused: newVal,
+      paused_until: null,
       status: newStatus,
       updated_at: new Date().toISOString()
     }).eq('id', lead.id);
 
-    setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, is_ai_paused: newVal, status: newStatus } : l));
+    setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, is_ai_paused: newVal, paused_until: null, status: newStatus } : l));
     if (selectedLead?.id === lead.id) {
-      setSelectedLead(prev => prev ? { ...prev, is_ai_paused: newVal, status: newStatus } : null);
+      setSelectedLead(prev => prev ? { ...prev, is_ai_paused: newVal, paused_until: null, status: newStatus } : null);
     }
     showToast(newVal ? '👤 IA pausada neste contato. Você assumiu o atendimento!' : '🤖 IA reativada para este contato!');
   };
 
-  const handleMarkAsPaid = async (lead: AgentLead) => {
+  const handleResetLead = async (lead: AgentLead) => {
     if (!supabase) return;
+    await supabase.from('caca_agent_messages').delete().eq('lead_phone', lead.phone);
     await supabase.from('caca_agent_leads').update({
-      status: 'pago',
+      size: null,
+      status: 'novo',
+      is_ai_paused: false,
+      paused_until: null,
+      followup_sent: false,
+      followup_sent_at: null,
+      notes: null,
       updated_at: new Date().toISOString()
     }).eq('id', lead.id);
 
-    setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status: 'pago' } : l));
+    setLeads(prev => prev.map(l => l.id === lead.id ? {
+      ...l,
+      size: null,
+      status: 'novo',
+      is_ai_paused: false,
+      paused_until: null,
+      followup_sent: false,
+      notes: null
+    } : l));
     if (selectedLead?.id === lead.id) {
-      setSelectedLead(prev => prev ? { ...prev, status: 'pago' } : null);
+      setChatMessages([]);
+      setSelectedLead(prev => prev ? {
+        ...prev,
+        size: null,
+        status: 'novo',
+        is_ai_paused: false,
+        paused_until: null,
+        followup_sent: false,
+        notes: null
+      } : null);
     }
-    showToast(`🎉 Pagamento do lead ${lead.phone} marcado como CONFIRMADO!`);
+    showToast(`🔄 Histórico e memória de ${lead.phone} resetados com sucesso!`);
+  };
+
+  const handleMarkAsPaid = async (lead: AgentLead) => {
+    if (!supabase) return;
+    const pauseUntilIso = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    await supabase.from('caca_agent_leads').update({
+      status: 'pago',
+      is_ai_paused: true,
+      paused_until: pauseUntilIso,
+      updated_at: new Date().toISOString()
+    }).eq('id', lead.id);
+
+    setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status: 'pago', is_ai_paused: true, paused_until: pauseUntilIso } : l));
+    if (selectedLead?.id === lead.id) {
+      setSelectedLead(prev => prev ? { ...prev, status: 'pago', is_ai_paused: true, paused_until: pauseUntilIso } : null);
+    }
+    showToast(`🎉 Pagamento do lead ${lead.phone} confirmado e IA pausada por 24h!`);
   };
 
   const handleOpenChat = async (lead: AgentLead) => {
@@ -321,6 +375,7 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
     if (filterStatus === 'pago') return l.status === 'pago';
     if (filterStatus === 'aguardando_pagamento') return l.status === 'aguardando_pagamento';
     if (filterStatus === 'em_atendimento') return l.status === 'em_atendimento' || l.status === 'novo';
+    if (filterStatus === 'followup_3h') return Boolean(l.followup_sent);
     return true;
   });
 
@@ -620,30 +675,51 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
 
       {/* Configurações Rápidas: Chave Pix, Preço do Combo, Whitelist e Inteligência Artificial */}
       <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Coluna 1: Oferta & Pix */}
+        {/* Coluna 1: Oferta, Pix, Notificação e Buffer */}
         <div>
           <h3 className="text-sm font-bold text-[#0A1329] mb-3 flex items-center gap-2">
             <Key className="w-4 h-4 text-[#D4AF37]" />
-            Configuração da Oferta
+            Oferta, Pix & Funil
           </h3>
-          <div className="space-y-3 mb-4">
+          <div className="space-y-2.5 mb-4">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-500 mb-1">Valor do Combo (R$)</label>
+                <input
+                  type="number"
+                  value={settings.combo_price}
+                  onChange={e => setSettings(s => ({ ...s, combo_price: Number(e.target.value) }))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-bold text-[#0A1329] focus:outline-none focus:border-[#D4AF37]"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-500 mb-1">Buffer / Delay (seg)</label>
+                <input
+                  type="number"
+                  value={settings.buffer_seconds}
+                  onChange={e => setSettings(s => ({ ...s, buffer_seconds: Number(e.target.value) }))}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-bold text-[#0A1329] focus:outline-none focus:border-[#D4AF37]"
+                />
+              </div>
+            </div>
             <div>
-              <label className="block text-[11px] font-semibold text-gray-500 mb-1">Valor do Combo (R$)</label>
+              <label className="block text-[11px] font-semibold text-gray-500 mb-1">Chave Pix Oficial da Oferta</label>
               <input
-                type="number"
-                value={settings.combo_price}
-                onChange={e => setSettings(s => ({ ...s, combo_price: Number(e.target.value) }))}
-                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm font-bold text-[#0A1329] focus:outline-none focus:border-[#D4AF37]"
+                type="text"
+                placeholder="87999114816 (Carmen Lucia Tenorio Torres)"
+                value={settings.pix_key}
+                onChange={e => setSettings(s => ({ ...s, pix_key: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-[#0A1329] focus:outline-none focus:border-[#D4AF37]"
               />
             </div>
             <div>
-              <label className="block text-[11px] font-semibold text-gray-500 mb-1">Chave Pix da Loja</label>
+              <label className="block text-[11px] font-semibold text-gray-500 mb-1">WhatsApp p/ Notificar Venda Fechada</label>
               <input
                 type="text"
-                placeholder="CPF / CNPJ / Telefone / Email"
-                value={settings.pix_key}
-                onChange={e => setSettings(s => ({ ...s, pix_key: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-[#0A1329] focus:outline-none focus:border-[#D4AF37]"
+                placeholder="5587981563664"
+                value={settings.notification_phone}
+                onChange={e => setSettings(s => ({ ...s, notification_phone: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-mono text-[#0A1329] focus:outline-none focus:border-[#D4AF37]"
               />
             </div>
           </div>
@@ -652,7 +728,7 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
             disabled={savingSettings}
             className="w-full py-2.5 bg-[#0A1329] text-white text-xs font-bold rounded-xl hover:bg-gray-800 transition-colors cursor-pointer"
           >
-            {savingSettings ? 'Salvando...' : 'Salvar Oferta & Pix'}
+            {savingSettings ? 'Salvando...' : 'Salvar Oferta, Pix & Buffer'}
           </button>
         </div>
 
@@ -701,7 +777,7 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
               </label>
               <input
                 type="password"
-                placeholder="AIzaSy... (Grátis) ou sk-or-v1-..."
+                placeholder="Conectado ao n8n OpenRouter Bridge Ativo ✓"
                 value={settings.openrouter_api_key || ''}
                 onChange={e => setSettings(s => ({ ...s, openrouter_api_key: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-[#0A1329] focus:outline-none focus:border-[#D4AF37]"
@@ -714,7 +790,7 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
                 onChange={e => setSettings(s => ({ ...s, openrouter_model: e.target.value }))}
                 className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs text-[#0A1329] focus:outline-none focus:border-[#D4AF37] bg-white"
               >
-                <option value="openai/gpt-4o-mini">OpenAI GPT-4o Mini Vision (Recomendado)</option>
+                <option value="openai/gpt-4o-mini">OpenAI GPT-4o Mini Vision (Ativo)</option>
                 <option value="google/gemini-2.0-flash-001">Google Gemini 2.0 Flash Vision</option>
                 <option value="anthropic/claude-3.5-haiku">Claude 3.5 Haiku</option>
               </select>
@@ -728,7 +804,7 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
             {savingSettings ? 'Salvando...' : 'Salvar Configurações de IA'}
           </button>
           <p className="text-[10px] text-gray-400 mt-2 leading-relaxed">
-            ✨ Aceita chave gratuita do Google AI Studio (<strong>AIza...</strong>) ou OpenRouter para enxergar qualquer foto enviada pelas clientes!
+            ✨ Memória de <strong>35 mensagens</strong> + Leitura de Comprovantes + Follow-up único de <strong>3h</strong> ativos!
           </p>
         </div>
       </div>
@@ -743,7 +819,8 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
               { id: 'todos', label: 'Todos os Leads' },
               { id: 'aguardando_humano', label: '🚨 Aguardando Humano' },
               { id: 'aguardando_pagamento', label: '💳 Aguardando Pix' },
-              { id: 'pago', label: '✅ Pagos' },
+              { id: 'pago', label: '✅ Pagos (Pausa 24h)' },
+              { id: 'followup_3h', label: '⏳ Lista Follow-up (3h)' },
               { id: 'em_atendimento', label: '💬 Em Atendimento' }
             ].map(f => (
               <button
@@ -782,105 +859,130 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
                   </td>
                 </tr>
               ) : (
-                filteredLeads.map(lead => (
-                  <tr key={lead.id} className="hover:bg-gray-50/70 transition-colors">
-                    <td className="py-3.5 px-4">
-                      <div className="font-bold text-gray-900">{lead.name || 'Cliente'}</div>
-                      <div className="text-[11px] text-gray-500 font-mono flex items-center gap-1">
-                        <Phone className="w-3 h-3 text-emerald-600" />
-                        {lead.phone}
-                      </div>
-                    </td>
+                filteredLeads.map(lead => {
+                  const isPaused24h = Boolean(lead.paused_until && new Date(lead.paused_until).getTime() > Date.now());
+                  return (
+                    <tr key={lead.id} className="hover:bg-gray-50/70 transition-colors">
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-gray-900 flex items-center gap-1.5">
+                          <span>{lead.name || 'Cliente'}</span>
+                          {lead.followup_sent && (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-bold" title="Recebeu o Follow-up único de 3 horas">
+                              ⏳ Follow-up 3h
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-gray-500 font-mono flex items-center gap-1">
+                          <Phone className="w-3 h-3 text-emerald-600" />
+                          {lead.phone}
+                        </div>
+                      </td>
 
-                    <td className="py-3.5 px-4">
-                      {lead.size ? (
-                        <span className="px-2 py-0.5 rounded-md font-black text-xs bg-purple-100 text-purple-800">
-                          {lead.size}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 italic">Não informado</span>
-                      )}
-                    </td>
-
-                    <td className="py-3.5 px-4">
-                      {lead.status === 'aguardando_humano' && (
-                        <span className="px-2.5 py-1 rounded-full font-bold text-[11px] bg-amber-100 text-amber-800 border border-amber-300 animate-pulse flex items-center gap-1 w-max">
-                          <AlertTriangle className="w-3 h-3" />
-                          Aguardando Você (Cartão/Link)
-                        </span>
-                      )}
-                      {lead.status === 'pago' && (
-                        <span className="px-2.5 py-1 rounded-full font-bold text-[11px] bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 w-max">
-                          <CheckCircle className="w-3 h-3" />
-                          Pago Confirmado
-                        </span>
-                      )}
-                      {lead.status === 'aguardando_pagamento' && (
-                        <span className="px-2.5 py-1 rounded-full font-bold text-[11px] bg-indigo-100 text-indigo-800 flex items-center gap-1 w-max">
-                          <Clock className="w-3 h-3" />
-                          Chave Pix Enviada
-                        </span>
-                      )}
-                      {(lead.status === 'em_atendimento' || lead.status === 'novo') && (
-                        <span className="px-2.5 py-1 rounded-full font-bold text-[11px] bg-blue-100 text-blue-800 flex items-center gap-1 w-max">
-                          <Bot className="w-3 h-3" />
-                          Em Atendimento
-                        </span>
-                      )}
-                      {lead.status === 'pausado' && (
-                        <span className="px-2.5 py-1 rounded-full font-bold text-[11px] bg-gray-200 text-gray-700 flex items-center gap-1 w-max">
-                          <UserCheck className="w-3 h-3" />
-                          Humano Assumiu
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="py-3.5 px-4">
-                      <button
-                        onClick={() => handleToggleLeadPause(lead)}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border ${
-                          lead.is_ai_paused
-                            ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
-                            : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
-                        }`}
-                      >
-                        {lead.is_ai_paused ? <Play className="w-3 h-3 text-purple-600" /> : <Pause className="w-3 h-3 text-gray-500" />}
-                        <span>{lead.is_ai_paused ? 'Reativar IA' : 'Assumir Atendimento'}</span>
-                      </button>
-                    </td>
-
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => handleOpenChat(lead)}
-                          className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-xs font-medium transition-colors cursor-pointer"
-                        >
-                          Ver Chat
-                        </button>
-
-                        {lead.status !== 'pago' && (
-                          <button
-                            onClick={() => handleMarkAsPaid(lead)}
-                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
-                            title="Marcar como Pago"
-                          >
-                            ✓ Pago
-                          </button>
+                      <td className="py-3.5 px-4">
+                        {lead.size ? (
+                          <span className="px-2 py-0.5 rounded-md font-black text-xs bg-purple-100 text-purple-800">
+                            {lead.size}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 italic">Não informado</span>
                         )}
+                      </td>
 
-                        <a
-                          href={`https://wa.me/${lead.phone}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg transition-colors"
-                          title="Abrir no WhatsApp Web"
+                      <td className="py-3.5 px-4">
+                        <div className="flex flex-col gap-1">
+                          {lead.status === 'aguardando_humano' && (
+                            <span className="px-2.5 py-1 rounded-full font-bold text-[11px] bg-amber-100 text-amber-800 border border-amber-300 animate-pulse flex items-center gap-1 w-max">
+                              <AlertTriangle className="w-3 h-3" />
+                              Aguardando Você (Cartão/Link)
+                            </span>
+                          )}
+                          {lead.status === 'pago' && (
+                            <span className="px-2.5 py-1 rounded-full font-bold text-[11px] bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 w-max">
+                              <CheckCircle className="w-3 h-3" />
+                              Venda Fechada (Pausa 24h)
+                            </span>
+                          )}
+                          {lead.status === 'aguardando_pagamento' && (
+                            <span className="px-2.5 py-1 rounded-full font-bold text-[11px] bg-indigo-100 text-indigo-800 flex items-center gap-1 w-max">
+                              <Clock className="w-3 h-3" />
+                              Chave Pix Enviada
+                            </span>
+                          )}
+                          {(lead.status === 'em_atendimento' || lead.status === 'novo') && (
+                            <span className="px-2.5 py-1 rounded-full font-bold text-[11px] bg-blue-100 text-blue-800 flex items-center gap-1 w-max">
+                              <Bot className="w-3 h-3" />
+                              Em Atendimento
+                            </span>
+                          )}
+                          {lead.status === 'pausado' && (
+                            <span className="px-2.5 py-1 rounded-full font-bold text-[11px] bg-gray-200 text-gray-700 flex items-center gap-1 w-max">
+                              <UserCheck className="w-3 h-3" />
+                              Humano Assumiu
+                            </span>
+                          )}
+                          {isPaused24h && (
+                            <span className="text-[10px] text-gray-500 font-mono">
+                              ⏸️ IA pausada até {new Date(lead.paused_until!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="py-3.5 px-4">
+                        <button
+                          onClick={() => handleToggleLeadPause(lead)}
+                          className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer border ${
+                            lead.is_ai_paused
+                              ? 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
+                              : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
+                          }`}
                         >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                          {lead.is_ai_paused ? <Play className="w-3 h-3 text-purple-600" /> : <Pause className="w-3 h-3 text-gray-500" />}
+                          <span>{lead.is_ai_paused ? 'Reativar IA' : 'Assumir Atendimento'}</span>
+                        </button>
+                      </td>
+
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleOpenChat(lead)}
+                            className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                          >
+                            Ver Chat
+                          </button>
+
+                          <button
+                            onClick={() => handleResetLead(lead)}
+                            className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-medium transition-colors cursor-pointer"
+                            title="Limpar memória desta conversa para testar do zero"
+                          >
+                            🔄 Resetar
+                          </button>
+
+                          {lead.status !== 'pago' && (
+                            <button
+                              onClick={() => handleMarkAsPaid(lead)}
+                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                              title="Marcar como Pago e Pausar por 24h"
+                            >
+                              ✓ Pago
+                            </button>
+                          )}
+
+                          <a
+                            href={`https://wa.me/${lead.phone}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 rounded-lg transition-colors"
+                            title="Abrir no WhatsApp Web"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -951,17 +1053,25 @@ export const AgentDashboard: React.FC<AgentDashboardProps> = ({
             </div>
 
             {/* Rodapé do Chat */}
-            <div className="p-3 bg-white border-t border-gray-100 flex items-center justify-between">
-              <button
-                onClick={() => handleToggleLeadPause(selectedLead)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  selectedLead.is_ai_paused
-                    ? 'bg-purple-100 text-purple-900'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {selectedLead.is_ai_paused ? '▶️ Reativar IA' : '⏸️ Assumir Atendimento'}
-              </button>
+            <div className="p-3 bg-white border-t border-gray-100 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => handleToggleLeadPause(selectedLead)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    selectedLead.is_ai_paused
+                      ? 'bg-purple-100 text-purple-900'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {selectedLead.is_ai_paused ? '▶️ Reativar IA' : '⏸️ Assumir'}
+                </button>
+                <button
+                  onClick={() => handleResetLead(selectedLead)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 transition-colors cursor-pointer"
+                >
+                  🔄 Resetar Memória
+                </button>
+              </div>
 
               <a
                 href={`https://wa.me/${selectedLead.phone}`}
