@@ -170,9 +170,9 @@ def generate_fallback_response(
 
     # 8. Saudação inicial
     if len(history) <= 1:
-        return f"Oii! Seja muito bem-vinda à CaçaStore! Me chamo Carmen, que alegria ter você por aqui! 🥰✨\n\nEstamos com nossa promoção especial de **2 pijamas por R$ {combo_price}** com **Entrega Grátis** aqui em Garanhuns!\n\nQual tamanho você veste (**P, M, G ou GG**)? Me fala aqui para eu te enviar as fotos dos modelos disponíveis no seu tamanho! 👇❤️"
+        return f"Olá! Sou a Cacá da CacaStore, vai ser um prazer te atender!\n\nTemos vários estilos de pijamas, mas *somente hoje* estamos com um combo especial de *2 pijamas por R$ {combo_price}* (1 sai por *R$ 109*) e com *Entrega Grátis* em Garanhuns! Qual tamanho você veste? *P, M, G ou GG*?"
 
-    return "Me conta qual tamanho você veste (**P, M, G ou GG**) ou qual modelinho você mais gostou para eu já separar aqui pra você com **Entrega Grátis** em Garanhuns! 🥰👇"
+    return "Me conta qual tamanho você veste (*P, M, G ou GG*) ou qual modelinho você mais gostou para eu já separar aqui pra você com *Entrega Grátis* em Garanhuns! 🥰👇"
 
 def extract_size_from_text(text: str) -> str:
     """Detecta tamanho mencionado no texto (GG, P, M, G)."""
