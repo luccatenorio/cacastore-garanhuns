@@ -168,9 +168,9 @@ def generate_fallback_response(
     if detected_size:
         return f"Perfeito! Separei aqui as opções mais lindas disponíveis no tamanho *{detected_size}*! 😍\n\nLembrando que *somente hoje* no nosso combo especial você leva *2 pijamas por R$ {combo_price}* (1 sai por *R$ 109*) com *Entrega Grátis* aqui em Garanhuns! Vou te mandar as fotos aqui embaixo 👇\n\nAlém desses modelos do combo, temos também *pijamas compridos (longos)* e *camisolas* lindas! Me diz quais você mais gostou ou se quer ver os compridos e camisolas também! ❤️"
 
-    # 8. Saudação inicial
+    # 8. Saudação inicial (curta e sem preço antes de mostrar as fotos)
     if len(history) <= 1:
-        return f"Olá! Sou a Cacá da CacaStore, vai ser um prazer te atender!\n\nTemos vários estilos de pijamas, mas *somente hoje* estamos com um combo especial de *2 pijamas por R$ {combo_price}* (1 sai por *R$ 109*) e com *Entrega Grátis* em Garanhuns! Qual tamanho você veste? *P, M, G ou GG*?"
+        return "Olá! Sou a Cacá da CacaStore, vai ser um prazer te atender! 🥰\n\nTemos vários estilos de pijamas lindos com *Entrega Grátis* aqui em Garanhuns! Qual tamanho você veste (*P, M, G ou GG*) pra eu já te mandar as fotos?"
 
     return "Me conta qual tamanho você veste (*P, M, G ou GG*) ou qual modelinho você mais gostou para eu já separar aqui pra você com *Entrega Grátis* em Garanhuns! 🥰👇"
 
